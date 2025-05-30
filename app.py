@@ -1,34 +1,40 @@
 import streamlit as st
 from gtts import gTTS
-from moviepy.editor import *
+from moviepy.editor import AudioFileClip
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+from PIL import Image
 import os
 import uuid
 
-st.title("🎬 Script to Video Generator")
+st.title("🎬 Script to Video (Voice Only)")
 
-# User script input
-script = st.text_area("✍️ Enter your script below:", height=200)
+script = st.text_area("✍️ Enter your script here:")
 
-# Generate video
 if st.button("🎥 Generate Video"):
-    if script.strip() == "":
-        st.warning("Please enter a script.")
+    if not script.strip():
+        st.error("Please enter a script.")
     else:
-        # Generate audio from script
-        tts = gTTS(script)
-        audio_filename = f"audio_{uuid.uuid4().hex}.mp3"
-        tts.save(audio_filename)
+        try:
+            st.info("Generating voice from text...")
+            # Save voice from script
+            audio_path = f"audio_{uuid.uuid4().hex}.mp3"
+            tts = gTTS(text=script, lang='en')
+            tts.save(audio_path)
 
-        # Create blank video (black background, 720p)
-        video = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=AudioFileClip(audio_filename).duration)
-        video = video.set_audio(AudioFileClip(audio_filename))
+            st.info("Combining into video...")
+            # Use a placeholder image to create a video with audio
+            image_path = "placeholder.jpg"
+            if not os.path.exists(image_path):
+                Image.new('RGB', (1280, 720), color=(0, 0, 0)).save(image_path)
 
-        # Output filename
-        output_filename = f"video_{uuid.uuid4().hex}.mp4"
-        video.write_videofile(output_filename, fps=24)
+            video_output = f"output_{uuid.uuid4().hex}.mp4"
+            os.system(f"ffmpeg -loop 1 -i {image_path} -i {audio_path} -shortest -c:v libx264 -c:a aac -strict experimental -b:a 192k -pix_fmt yuv420p -vf scale=1280:720 {video_output}")
 
-        # Show video
-        st.video(output_filename)
+            st.success("✅ Video created!")
+            st.video(video_output)
 
-        # Cleanup
-        os.remove(audio_filename)
+            # Cleanup
+            os.remove(audio_path)
+            os.remove(video_output)
+        except Exception as e:
+            st.error(f"Something went wrong: {e}")
