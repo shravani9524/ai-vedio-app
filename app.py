@@ -1,32 +1,34 @@
 import streamlit as st
 from gtts import gTTS
 from moviepy.editor import *
-import tempfile
 import os
+import uuid
 
-st.title("🎬 AI Script to Video Generator")
+st.title("🎬 Script to Video Generator")
 
-script = st.text_area("✍️ Enter your script here:")
+# User script input
+script = st.text_area("✍️ Enter your script below:", height=200)
 
+# Generate video
 if st.button("🎥 Generate Video"):
-    if not script.strip():
-        st.error("Please enter a script.")
+    if script.strip() == "":
+        st.warning("Please enter a script.")
     else:
-        with st.spinner("Generating audio..."):
-            tts = gTTS(text=script, lang='en')
-            temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-            tts.save(temp_audio.name)
+        # Generate audio from script
+        tts = gTTS(script)
+        audio_filename = f"audio_{uuid.uuid4().hex}.mp3"
+        tts.save(audio_filename)
 
-        with st.spinner("Creating video..."):
-            audioclip = AudioFileClip(temp_audio.name)
-            txtclip = TextClip(script, fontsize=24, color='white', size=(720, 480), method='caption')
-            txtclip = txtclip.set_duration(audioclip.duration).set_audio(audioclip)
+        # Create blank video (black background, 720p)
+        video = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=AudioFileClip(audio_filename).duration)
+        video = video.set_audio(AudioFileClip(audio_filename))
 
-            temp_video = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-            txtclip.write_videofile(temp_video.name, fps=24)
+        # Output filename
+        output_filename = f"video_{uuid.uuid4().hex}.mp4"
+        video.write_videofile(output_filename, fps=24)
 
-        st.success("✅ Video created!")
-        st.video(temp_video.name)
+        # Show video
+        st.video(output_filename)
 
-        os.remove(temp_audio.name)
-        os.remove(temp_video.name)
+        # Cleanup
+        os.remove(audio_filename)
