@@ -2,11 +2,11 @@ import streamlit as st
 from gtts import gTTS
 import os
 import uuid
-import shutil
 
-st.title("🎬 AI Script-to-Video Generator with Background and Subtitles")
+st.set_page_config(page_title="Script to Video", layout="centered")
+st.title("🎬 AI Script-to-Video Generator")
 
-# Choose background by keyword
+# Select video based on script content
 def select_background_video(script):
     script = script.lower()
     if "nature" in script:
@@ -18,47 +18,41 @@ def select_background_video(script):
     else:
         return "videos/default.mp4"
 
-# User input
-script = st.text_area("✍️ Enter your script:", height=200)
+# Input box
+script = st.text_area("✍️ Paste your script here:", height=200)
 
 if st.button("🎥 Generate Video"):
     if not script.strip():
         st.warning("Please enter a script.")
     else:
         try:
-            st.info("🔊 Converting script to voice...")
+            st.info("🎤 Converting to voice...")
             audio_path = f"audio_{uuid.uuid4().hex}.mp3"
             tts = gTTS(text=script, lang='en')
             tts.save(audio_path)
 
-            st.info("🎞️ Selecting background video...")
+            st.info("🎞️ Selecting background...")
             bg_video = select_background_video(script)
 
-            output_path = f"video_{uuid.uuid4().hex}.mp4"
+            st.info("📝 Creating subtitles...")
             subtitle_path = f"subtitle_{uuid.uuid4().hex}.srt"
-
-            # Generate subtitle file
             with open(subtitle_path, "w") as srt:
                 srt.write("1\n00:00:00,000 --> 00:00:10,000\n")
                 srt.write(script)
 
-            st.info("🎬 Creating final video...")
-            ffmpeg_cmd = f"""
-            ffmpeg -y -i "{bg_video}" -i "{audio_path}" -vf "subtitles={subtitle_path}" \
-            -shortest -c:v libx264 -c:a aac -strict experimental "{output_path}"
-            """
+            st.info("🎬 Generating video...")
+            output_path = f"video_{uuid.uuid4().hex}.mp4"
+            ffmpeg_cmd = f"""ffmpeg -y -i "{bg_video}" -i "{audio_path}" -vf "subtitles={subtitle_path}" -shortest -c:v libx264 -c:a aac "{output_path}" """
             os.system(ffmpeg_cmd)
 
-            st.success("✅ Video created!")
-            st.video(output_path)
-
             with open(output_path, "rb") as video_file:
-                st.download_button("📥 Download Video", data=video_file, file_name="my_video.mp4")
+                video_bytes = video_file.read()
+                st.video(video_bytes)
+                st.download_button("📥 Download Video", video_bytes, file_name="my_video.mp4")
 
-            # Cleanup
             os.remove(audio_path)
             os.remove(output_path)
             os.remove(subtitle_path)
 
         except Exception as e:
-            st.error(f"Something went wrong: {e}")
+            st.error(f"⚠️ Something went wrong: {e}")
